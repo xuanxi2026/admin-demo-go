@@ -1,0 +1,123 @@
+openapi: 3.0.3
+info:
+  title: admin-demo-go API
+  version: 1.0.0
+  description: Admin demo backend baseline API for internal management systems.
+servers:
+  - url: http://127.0.0.1:8889
+paths:
+  /api/login:
+    post:
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username: { type: string }
+                password: { type: string }
+                googleCode: { type: string }
+      responses:
+        '200':
+          description: Standard response envelope
+  /api/userInfo:
+    post:
+      summary: Get user profile for route permission bootstrap
+      responses:
+        '200': { description: ok }
+  /api/profile:
+    get:
+      summary: Get profile
+      responses:
+        '200': { description: ok }
+    put:
+      summary: Update profile
+      responses:
+        '200': { description: ok }
+  /api/userManagement/getList:
+    post:
+      summary: User list
+      responses:
+        '200': { description: ok }
+  /api/userManagement/doEdit:
+    post:
+      summary: Create or update user
+      responses:
+        '200': { description: ok }
+  /api/userManagement/doDelete:
+    post:
+      summary: Delete users by ids
+      responses:
+        '200': { description: ok }
+  /api/roleManagement/getList:
+    post:
+      summary: Role list
+      responses:
+        '200': { description: ok }
+  /api/roleManagement/doEdit:
+    post:
+      summary: Create or update role
+      responses:
+        '200': { description: ok }
+  /api/roleManagement/doDelete:
+    post:
+      summary: Delete roles by ids
+      responses:
+        '200': { description: ok }
+  /api/menuManagement/getTree:
+    post:
+      summary: Role tree for menu management
+      responses:
+        '200': { description: ok }
+  /api/menuManagement/doEdit:
+    post:
+      summary: Create or update menu
+      responses:
+        '200': { description: ok }
+  /api/menuManagement/doDelete:
+    post:
+      summary: Delete menus by ids
+      responses:
+        '200': { description: ok }
+  /api/fileManagement/public/list:
+    post:
+      summary: Public file list
+      responses:
+        '200': { description: ok }
+  /api/fileManagement/private/list:
+    post:
+      summary: Private file list
+      responses:
+        '200': { description: ok }
+  /api/fileManagement/public/upload:
+    post:
+      summary: Upload file to public area
+      responses:
+        '200': { description: ok }
+  /api/fileManagement/private/upload:
+    post:
+      summary: Upload file to private area
+      responses:
+        '200': { description: ok }
+  /api/fileManagement/private/download/{name}:
+    get:
+      summary: Download private file (auth required)
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: ok }
+  /files/public/{name}:
+    get:
+      summary: Public direct download link
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: ok }
