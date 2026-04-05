@@ -170,7 +170,7 @@ func (r *SystemRepository) DeleteDepartmentsByIDs(ids []uint) error {
 	return r.db.Where("id IN ?", ids).Delete(&model.Department{}).Error
 }
 
-func (r *SystemRepository) ListNotices(pageNo, pageSize int, level, keyword string) ([]model.Notice, int64, error) {
+func (r *SystemRepository) ListNotices(pageNo, pageSize int, level, status, keyword string) ([]model.Notice, int64, error) {
 	var (
 		list  []model.Notice
 		total int64
@@ -178,6 +178,9 @@ func (r *SystemRepository) ListNotices(pageNo, pageSize int, level, keyword stri
 	query := r.db.Model(&model.Notice{})
 	if strings.TrimSpace(level) != "" {
 		query = query.Where("level = ?", strings.TrimSpace(level))
+	}
+	if strings.TrimSpace(status) != "" {
+		query = query.Where("status = ?", strings.TrimSpace(status))
 	}
 	if kw := strings.TrimSpace(keyword); kw != "" {
 		query = query.Where("title LIKE ? OR content LIKE ? OR publisher LIKE ?", "%"+kw+"%", "%"+kw+"%", "%"+kw+"%")

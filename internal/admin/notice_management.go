@@ -15,11 +15,12 @@ func (m *Module) NoticeGetList(c *gin.Context) {
 		PageNo   int    `json:"pageNo"`
 		PageSize int    `json:"pageSize"`
 		Level    string `json:"level"`
+		Status   string `json:"status"`
 		Keyword  string `json:"keyword"`
 	}
 	_ = c.ShouldBindJSON(&in)
 	in.PageNo, in.PageSize = normalizePage(in.PageNo, in.PageSize)
-	list, total, err := m.systemRepo.ListNotices(in.PageNo, in.PageSize, in.Level, in.Keyword)
+	list, total, err := m.systemRepo.ListNotices(in.PageNo, in.PageSize, in.Level, in.Status, in.Keyword)
 	if err != nil {
 		response.Fail(c, ecode.InternalError, "查询通知公告失败")
 		return
