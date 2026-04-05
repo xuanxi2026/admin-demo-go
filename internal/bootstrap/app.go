@@ -277,7 +277,6 @@ func seedSystemConfigs(db *gorm.DB) {
 		{ConfigKey: "site.title", ConfigValue: "Admin Demo", Name: "站点标题", Group: "site", ValueType: "string", Remark: "后台系统标题"},
 		{ConfigKey: "site.description", ConfigValue: "可复用后台管理系统基座", Name: "站点描述", Group: "site", ValueType: "string", Remark: "站点描述文案"},
 		{ConfigKey: "site.logo", ConfigValue: "/logo.png", Name: "站点 Logo", Group: "site", ValueType: "string", Remark: "站点 logo 地址"},
-		{ConfigKey: "site.maintenance_mode", ConfigValue: "false", Name: "维护模式", Group: "site", ValueType: "boolean", Remark: "是否启用维护模式"},
 		{ConfigKey: "security.login_captcha", ConfigValue: "false", Name: "登录验证码", Group: "security", ValueType: "boolean", Remark: "是否启用登录验证码"},
 		{ConfigKey: "security.password_min_length", ConfigValue: "8", Name: "密码最小长度", Group: "security", ValueType: "number", Remark: "密码安全策略"},
 		{ConfigKey: "security.two_factor_auth", ConfigValue: "false", Name: "双重认证", Group: "security", ValueType: "boolean", Remark: "是否要求双重认证"},
