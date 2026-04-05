@@ -2,7 +2,9 @@ package service
 
 import (
 	"admin-demo-go/internal/model"
+	"admin-demo-go/internal/pkg/password"
 	"admin-demo-go/internal/repository"
+	"errors"
 )
 
 type ProfileService struct {
@@ -32,5 +34,29 @@ func (s *ProfileService) Update(userID uint, in ProfileUpdateInput) error {
 		"email":    in.Email,
 		"avatar":   in.Avatar,
 		"bio":      in.Bio,
+	})
+}
+
+var ErrCurrentPasswordMismatch = errors.New("current password mismatch")
+
+type ChangePasswordInput struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
+func (s *ProfileService) ChangePassword(userID uint, in ChangePasswordInput) error {
+	user, err := s.repo.FindByID(userID)
+	if err != nil {
+		return err
+	}
+	if !password.Verify(user.PasswordHash, in.CurrentPassword) {
+		return ErrCurrentPasswordMismatch
+	}
+	hash, err := password.Hash(in.NewPassword)
+	if err != nil {
+		return err
+	}
+	return s.repo.UpdateByID(userID, map[string]any{
+		"password_hash": hash,
 	})
 }

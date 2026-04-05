@@ -44,6 +44,7 @@ func New(app *bootstrap.App) *gin.Engine {
 		protected.POST("/userInfo", profileHandler.UserInfo)
 		protected.GET("/profile", profileHandler.GetProfile)
 		protected.PUT("/profile", middleware.RequirePermission(rbacSvc, "profile:update"), profileHandler.UpdateProfile)
+		protected.POST("/profile/change-password", middleware.RequirePermission(rbacSvc, "profile:update"), profileHandler.ChangePassword)
 		protected.POST("/menu/navigate", menuHandler.Navigate)
 
 		protected.GET("/auth/google/setup", middleware.RequirePermission(rbacSvc, "google:bind"), googleAuthHandler.Setup)
