@@ -83,6 +83,7 @@ func initDB(cfg *config.Config) (*gorm.DB, error) {
 		&model.SystemConfig{},
 		&model.OperationLog{},
 		&model.Department{},
+		&model.Notice{},
 		&model.UserRole{},
 		&model.RolePermission{},
 		&model.RoleMenu{},
@@ -183,9 +184,10 @@ func seedRBAC(db *gorm.DB) {
 		{Key: "PersonnelManagement", Parent: "", Menu: model.Menu{Path: "/personnelManagement", Name: "PersonnelManagement", Component: "Layout", Redirect: "noRedirect", Title: "配置", Icon: "users-cog", Sort: 20}},
 		{Key: "RoleManagement", Parent: "PersonnelManagement", Menu: model.Menu{Path: "roleManagement", Name: "RoleManagement", Component: "@/views/personnelManagement/roleManagement/index", Title: "角色管理", PermissionCode: "rbac:view", Sort: 21}},
 		{Key: "DepartmentManagement", Parent: "PersonnelManagement", Menu: model.Menu{Path: "departmentManagement", Name: "DepartmentManagement", Component: "@/views/personnelManagement/departmentManagement/index", Title: "部门管理", PermissionCode: "rbac:view", Sort: 22}},
-		{Key: "DictManagement", Parent: "PersonnelManagement", Menu: model.Menu{Path: "dictManagement", Name: "DictManagement", Component: "@/views/personnelManagement/dictManagement/index", Title: "字典管理", PermissionCode: "rbac:view", Sort: 23}},
-		{Key: "ConfigManagement", Parent: "PersonnelManagement", Menu: model.Menu{Path: "configManagement", Name: "ConfigManagement", Component: "@/views/personnelManagement/configManagement/index", Title: "系统配置", PermissionCode: "rbac:view", Sort: 24}},
-		{Key: "OperationLog", Parent: "PersonnelManagement", Menu: model.Menu{Path: "operationLog", Name: "OperationLog", Component: "@/views/personnelManagement/operationLog/index", Title: "操作日志", PermissionCode: "rbac:view", Sort: 25}},
+		{Key: "NoticeManagement", Parent: "PersonnelManagement", Menu: model.Menu{Path: "noticeManagement", Name: "NoticeManagement", Component: "@/views/personnelManagement/noticeManagement/index", Title: "通知公告", PermissionCode: "rbac:view", Sort: 23}},
+		{Key: "DictManagement", Parent: "PersonnelManagement", Menu: model.Menu{Path: "dictManagement", Name: "DictManagement", Component: "@/views/personnelManagement/dictManagement/index", Title: "字典管理", PermissionCode: "rbac:view", Sort: 24}},
+		{Key: "ConfigManagement", Parent: "PersonnelManagement", Menu: model.Menu{Path: "configManagement", Name: "ConfigManagement", Component: "@/views/personnelManagement/configManagement/index", Title: "系统配置", PermissionCode: "rbac:view", Sort: 25}},
+		{Key: "OperationLog", Parent: "PersonnelManagement", Menu: model.Menu{Path: "operationLog", Name: "OperationLog", Component: "@/views/personnelManagement/operationLog/index", Title: "操作日志", PermissionCode: "rbac:view", Sort: 26}},
 	}
 	menuPK := map[string]uint{}
 	for _, def := range menuDefs {
@@ -228,7 +230,7 @@ func seedRBAC(db *gorm.DB) {
 	bindRolePerms(db, roleID["editor"], editorPerms, permID)
 	bindRolePerms(db, roleID["test"], testPerms, permID)
 
-	adminMenus := []string{"Root", "Index", "Vab", "Permission", "PersonnelManagement", "RoleManagement", "DepartmentManagement", "DictManagement", "ConfigManagement", "OperationLog"}
+	adminMenus := []string{"Root", "Index", "Vab", "Permission", "PersonnelManagement", "RoleManagement", "DepartmentManagement", "NoticeManagement", "DictManagement", "ConfigManagement", "OperationLog"}
 	editorMenus := []string{"Root", "Index", "Vab", "Permission"}
 	testMenus := []string{"Root", "Index"}
 	bindRoleMenus(db, roleID["admin"], adminMenus, menuID)
@@ -238,6 +240,7 @@ func seedRBAC(db *gorm.DB) {
 	seedDictItems(db)
 	seedSystemConfigs(db)
 	seedDepartments(db)
+	seedNotices(db)
 }
 
 func bindRolePerms(db *gorm.DB, roleID uint, codes []string, permIDMap map[string]uint) {
@@ -300,6 +303,16 @@ func seedDepartments(db *gorm.DB) {
 		var department model.Department
 		db.Where("code = ?", item.Item.Code).FirstOrCreate(&department, item.Item)
 		codeToID[item.Item.Code] = department.ID
+	}
+}
+
+func seedNotices(db *gorm.DB) {
+	items := []model.Notice{
+		{Title: "系统升级通知", Content: "本周五晚间进行版本升级，请提前保存数据。", Level: "important", Status: "published", Publisher: "系统管理员", Sort: 1, Remark: "升级公告"},
+		{Title: "权限调整提醒", Content: "近期将统一梳理角色权限，请各部门负责人确认菜单访问范围。", Level: "normal", Status: "published", Publisher: "运维中心", Sort: 2, Remark: "权限公告"},
+	}
+	for _, item := range items {
+		db.Where("title = ?", item.Title).FirstOrCreate(&model.Notice{}, item)
 	}
 }
 

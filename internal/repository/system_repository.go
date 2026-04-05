@@ -169,3 +169,40 @@ func (r *SystemRepository) DeleteDepartmentsByIDs(ids []uint) error {
 	}
 	return r.db.Where("id IN ?", ids).Delete(&model.Department{}).Error
 }
+
+func (r *SystemRepository) ListNotices(pageNo, pageSize int, level, keyword string) ([]model.Notice, int64, error) {
+	var (
+		list  []model.Notice
+		total int64
+	)
+	query := r.db.Model(&model.Notice{})
+	if strings.TrimSpace(level) != "" {
+		query = query.Where("level = ?", strings.TrimSpace(level))
+	}
+	if kw := strings.TrimSpace(keyword); kw != "" {
+		query = query.Where("title LIKE ? OR content LIKE ? OR publisher LIKE ?", "%"+kw+"%", "%"+kw+"%", "%"+kw+"%")
+	}
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	offset := (pageNo - 1) * pageSize
+	if err := query.Order("sort asc, id desc").Offset(offset).Limit(pageSize).Find(&list).Error; err != nil {
+		return nil, 0, err
+	}
+	return list, total, nil
+}
+
+func (r *SystemRepository) CreateNotice(item *model.Notice) error {
+	return r.db.Create(item).Error
+}
+
+func (r *SystemRepository) UpdateNoticeByID(id uint, updates map[string]any) error {
+	return r.db.Model(&model.Notice{}).Where("id = ?", id).Updates(updates).Error
+}
+
+func (r *SystemRepository) DeleteNoticesByIDs(ids []uint) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	return r.db.Where("id IN ?", ids).Delete(&model.Notice{}).Error
+}

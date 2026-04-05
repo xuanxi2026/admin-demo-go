@@ -51,3 +51,16 @@ type Department struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
+
+type Notice struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	Title     string    `gorm:"size:128;not null" json:"title"`
+	Content   string    `gorm:"type:text;not null" json:"content"`
+	Level     string    `gorm:"size:16;not null;default:normal" json:"level"`
+	Status    string    `gorm:"size:16;not null;default:draft" json:"status"`
+	Publisher string    `gorm:"size:64" json:"publisher"`
+	Sort      int       `gorm:"not null;default:0" json:"sort"`
+	Remark    string    `gorm:"size:255" json:"remark"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}

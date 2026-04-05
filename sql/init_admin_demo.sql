@@ -109,6 +109,19 @@ CREATE TABLE IF NOT EXISTS departments (
   INDEX idx_departments_parent_id (parent_id)
 );
 
+CREATE TABLE IF NOT EXISTS notices (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  title VARCHAR(128) NOT NULL,
+  content TEXT NOT NULL,
+  level VARCHAR(16) NOT NULL DEFAULT 'normal',
+  status VARCHAR(16) NOT NULL DEFAULT 'draft',
+  publisher VARCHAR(64) DEFAULT '',
+  sort INT NOT NULL DEFAULT 0,
+  remark VARCHAR(255) DEFAULT '',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS user_roles (
   user_id BIGINT NOT NULL,
   role_id BIGINT NOT NULL,
@@ -158,3 +171,7 @@ INSERT IGNORE INTO departments(parent_id, name, code, leader, phone, status, sor
 (0, '研发中心', 'rd-center', '李工', '13800000001', 'enabled', 2, '产品与研发'),
 (0, '运营中心', 'ops-center', '王运', '13800000002', 'enabled', 3, '内容与增长'),
 (2, '后端组', 'backend-team', '陈后端', '13800000003', 'enabled', 1, '后端研发');
+
+INSERT IGNORE INTO notices(title, content, level, status, publisher, sort, remark) VALUES
+('系统升级通知', '本周五晚间进行版本升级，请提前保存数据。', 'important', 'published', '系统管理员', 1, '升级公告'),
+('权限调整提醒', '近期将统一梳理角色权限，请各部门负责人确认菜单访问范围。', 'normal', 'published', '运维中心', 2, '权限公告');
