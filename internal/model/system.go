@@ -37,3 +37,17 @@ type OperationLog struct {
 	Detail    string    `gorm:"size:255" json:"detail"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+type Department struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	ParentID  uint      `gorm:"index;default:0" json:"parent_id"`
+	Name      string    `gorm:"size:64;not null" json:"name"`
+	Code      string    `gorm:"size:64;not null;uniqueIndex" json:"code"`
+	Leader    string    `gorm:"size:64" json:"leader"`
+	Phone     string    `gorm:"size:32" json:"phone"`
+	Status    string    `gorm:"size:16;not null;default:enabled" json:"status"`
+	Sort      int       `gorm:"not null;default:0" json:"sort"`
+	Remark    string    `gorm:"size:255" json:"remark"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}

@@ -148,3 +148,24 @@ func (r *SystemRepository) SeedOperationLog(module, action, operator, target, re
 		CreatedAt: time.Now(),
 	})
 }
+
+func (r *SystemRepository) ListDepartments() ([]model.Department, error) {
+	var list []model.Department
+	err := r.db.Order("sort asc, id asc").Find(&list).Error
+	return list, err
+}
+
+func (r *SystemRepository) CreateDepartment(item *model.Department) error {
+	return r.db.Create(item).Error
+}
+
+func (r *SystemRepository) UpdateDepartmentByID(id uint, updates map[string]any) error {
+	return r.db.Model(&model.Department{}).Where("id = ?", id).Updates(updates).Error
+}
+
+func (r *SystemRepository) DeleteDepartmentsByIDs(ids []uint) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	return r.db.Where("id IN ?", ids).Delete(&model.Department{}).Error
+}

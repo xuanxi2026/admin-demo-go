@@ -82,6 +82,7 @@ func initDB(cfg *config.Config) (*gorm.DB, error) {
 		&model.DictItem{},
 		&model.SystemConfig{},
 		&model.OperationLog{},
+		&model.Department{},
 		&model.UserRole{},
 		&model.RolePermission{},
 		&model.RoleMenu{},
@@ -181,9 +182,10 @@ func seedRBAC(db *gorm.DB) {
 		{Key: "Permission", Parent: "Vab", Menu: model.Menu{Path: "permissions", Name: "Permission", Component: "@/views/vab/permissions/index", Title: "角色权限", PermissionCode: "rbac:view", Sort: 11}},
 		{Key: "PersonnelManagement", Parent: "", Menu: model.Menu{Path: "/personnelManagement", Name: "PersonnelManagement", Component: "Layout", Redirect: "noRedirect", Title: "配置", Icon: "users-cog", Sort: 20}},
 		{Key: "RoleManagement", Parent: "PersonnelManagement", Menu: model.Menu{Path: "roleManagement", Name: "RoleManagement", Component: "@/views/personnelManagement/roleManagement/index", Title: "角色管理", PermissionCode: "rbac:view", Sort: 21}},
-		{Key: "DictManagement", Parent: "PersonnelManagement", Menu: model.Menu{Path: "dictManagement", Name: "DictManagement", Component: "@/views/personnelManagement/dictManagement/index", Title: "字典管理", PermissionCode: "rbac:view", Sort: 22}},
-		{Key: "ConfigManagement", Parent: "PersonnelManagement", Menu: model.Menu{Path: "configManagement", Name: "ConfigManagement", Component: "@/views/personnelManagement/configManagement/index", Title: "系统配置", PermissionCode: "rbac:view", Sort: 23}},
-		{Key: "OperationLog", Parent: "PersonnelManagement", Menu: model.Menu{Path: "operationLog", Name: "OperationLog", Component: "@/views/personnelManagement/operationLog/index", Title: "操作日志", PermissionCode: "rbac:view", Sort: 24}},
+		{Key: "DepartmentManagement", Parent: "PersonnelManagement", Menu: model.Menu{Path: "departmentManagement", Name: "DepartmentManagement", Component: "@/views/personnelManagement/departmentManagement/index", Title: "部门管理", PermissionCode: "rbac:view", Sort: 22}},
+		{Key: "DictManagement", Parent: "PersonnelManagement", Menu: model.Menu{Path: "dictManagement", Name: "DictManagement", Component: "@/views/personnelManagement/dictManagement/index", Title: "字典管理", PermissionCode: "rbac:view", Sort: 23}},
+		{Key: "ConfigManagement", Parent: "PersonnelManagement", Menu: model.Menu{Path: "configManagement", Name: "ConfigManagement", Component: "@/views/personnelManagement/configManagement/index", Title: "系统配置", PermissionCode: "rbac:view", Sort: 24}},
+		{Key: "OperationLog", Parent: "PersonnelManagement", Menu: model.Menu{Path: "operationLog", Name: "OperationLog", Component: "@/views/personnelManagement/operationLog/index", Title: "操作日志", PermissionCode: "rbac:view", Sort: 25}},
 	}
 	menuPK := map[string]uint{}
 	for _, def := range menuDefs {
@@ -226,7 +228,7 @@ func seedRBAC(db *gorm.DB) {
 	bindRolePerms(db, roleID["editor"], editorPerms, permID)
 	bindRolePerms(db, roleID["test"], testPerms, permID)
 
-	adminMenus := []string{"Root", "Index", "Vab", "Permission", "PersonnelManagement", "RoleManagement", "DictManagement", "ConfigManagement", "OperationLog"}
+	adminMenus := []string{"Root", "Index", "Vab", "Permission", "PersonnelManagement", "RoleManagement", "DepartmentManagement", "DictManagement", "ConfigManagement", "OperationLog"}
 	editorMenus := []string{"Root", "Index", "Vab", "Permission"}
 	testMenus := []string{"Root", "Index"}
 	bindRoleMenus(db, roleID["admin"], adminMenus, menuID)
@@ -235,6 +237,7 @@ func seedRBAC(db *gorm.DB) {
 
 	seedDictItems(db)
 	seedSystemConfigs(db)
+	seedDepartments(db)
 }
 
 func bindRolePerms(db *gorm.DB, roleID uint, codes []string, permIDMap map[string]uint) {
@@ -273,6 +276,30 @@ func seedSystemConfigs(db *gorm.DB) {
 	}
 	for _, item := range items {
 		db.Where("config_key = ?", item.ConfigKey).FirstOrCreate(&model.SystemConfig{}, item)
+	}
+}
+
+func seedDepartments(db *gorm.DB) {
+	type deptSeed struct {
+		ParentCode string
+		Item       model.Department
+	}
+	items := []deptSeed{
+		{Item: model.Department{Name: "总部", Code: "headquarters", Leader: "张总", Phone: "13800000000", Status: "enabled", Sort: 1, Remark: "公司总部"}},
+		{Item: model.Department{Name: "研发中心", Code: "rd-center", Leader: "李工", Phone: "13800000001", Status: "enabled", Sort: 2, Remark: "产品与研发"}},
+		{Item: model.Department{Name: "运营中心", Code: "ops-center", Leader: "王运", Phone: "13800000002", Status: "enabled", Sort: 3, Remark: "内容与增长"}},
+		{ParentCode: "rd-center", Item: model.Department{Name: "后端组", Code: "backend-team", Leader: "陈后端", Phone: "13800000003", Status: "enabled", Sort: 1, Remark: "后端研发"}},
+	}
+	codeToID := map[string]uint{}
+	for _, item := range items {
+		var parentID uint
+		if item.ParentCode != "" {
+			parentID = codeToID[item.ParentCode]
+		}
+		item.Item.ParentID = parentID
+		var department model.Department
+		db.Where("code = ?", item.Item.Code).FirstOrCreate(&department, item.Item)
+		codeToID[item.Item.Code] = department.ID
 	}
 }
 

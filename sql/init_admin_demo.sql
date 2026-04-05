@@ -94,6 +94,21 @@ CREATE TABLE IF NOT EXISTS operation_logs (
   INDEX idx_operation_request_id (request_id)
 );
 
+CREATE TABLE IF NOT EXISTS departments (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  parent_id BIGINT NOT NULL DEFAULT 0,
+  name VARCHAR(64) NOT NULL,
+  code VARCHAR(64) NOT NULL UNIQUE,
+  leader VARCHAR(64) DEFAULT '',
+  phone VARCHAR(32) DEFAULT '',
+  status VARCHAR(16) NOT NULL DEFAULT 'enabled',
+  sort INT NOT NULL DEFAULT 0,
+  remark VARCHAR(255) DEFAULT '',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_departments_parent_id (parent_id)
+);
+
 CREATE TABLE IF NOT EXISTS user_roles (
   user_id BIGINT NOT NULL,
   role_id BIGINT NOT NULL,
@@ -137,3 +152,9 @@ INSERT IGNORE INTO system_configs(config_key, config_value, name, `group`, value
 ('site.title', 'Admin Demo', '站点标题', 'site', 'string', '后台系统标题'),
 ('site.logo', '/logo.png', '站点 Logo', 'site', 'string', '站点 logo 地址'),
 ('security.login_captcha', 'false', '登录验证码', 'security', 'boolean', '是否启用登录验证码');
+
+INSERT IGNORE INTO departments(parent_id, name, code, leader, phone, status, sort, remark) VALUES
+(0, '总部', 'headquarters', '张总', '13800000000', 'enabled', 1, '公司总部'),
+(0, '研发中心', 'rd-center', '李工', '13800000001', 'enabled', 2, '产品与研发'),
+(0, '运营中心', 'ops-center', '王运', '13800000002', 'enabled', 3, '内容与增长'),
+(2, '后端组', 'backend-team', '陈后端', '13800000003', 'enabled', 1, '后端研发');
