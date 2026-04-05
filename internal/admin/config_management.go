@@ -8,6 +8,7 @@ import (
 	"admin-demo-go/internal/pkg/response"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func (m *Module) ConfigGetList(c *gin.Context) {
@@ -98,16 +99,27 @@ func (m *Module) ConfigDoEdit(c *gin.Context) {
 			return
 		}
 	} else {
-		if err := m.systemRepo.CreateConfig(&model.SystemConfig{
-			ConfigKey:   in.ConfigKey,
-			ConfigValue: in.ConfigValue,
-			Name:        in.Name,
-			Group:       in.Group,
-			ValueType:   in.ValueType,
-			Remark:      in.Remark,
-		}); err != nil {
-			response.Fail(c, ecode.InternalError, "新增系统配置失败")
+		exist, err := m.systemRepo.FindConfigByKey(in.ConfigKey)
+		if err == nil && exist != nil {
+			if err := m.systemRepo.UpdateConfigByID(exist.ID, updates); err != nil {
+				response.Fail(c, ecode.InternalError, "更新系统配置失败")
+				return
+			}
+		} else if err != nil && err != gorm.ErrRecordNotFound {
+			response.Fail(c, ecode.InternalError, "查询系统配置失败")
 			return
+		} else {
+			if err := m.systemRepo.CreateConfig(&model.SystemConfig{
+				ConfigKey:   in.ConfigKey,
+				ConfigValue: in.ConfigValue,
+				Name:        in.Name,
+				Group:       in.Group,
+				ValueType:   in.ValueType,
+				Remark:      in.Remark,
+			}); err != nil {
+				response.Fail(c, ecode.InternalError, "新增系统配置失败")
+				return
+			}
 		}
 	}
 

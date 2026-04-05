@@ -82,6 +82,14 @@ func (r *SystemRepository) CreateConfig(item *model.SystemConfig) error {
 	return r.db.Create(item).Error
 }
 
+func (r *SystemRepository) FindConfigByKey(configKey string) (*model.SystemConfig, error) {
+	var item model.SystemConfig
+	if err := r.db.Where("config_key = ?", strings.TrimSpace(configKey)).First(&item).Error; err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
 func (r *SystemRepository) UpdateConfigByID(id uint, updates map[string]any) error {
 	return r.db.Model(&model.SystemConfig{}).Where("id = ?", id).Updates(updates).Error
 }

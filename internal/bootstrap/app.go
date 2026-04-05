@@ -275,8 +275,19 @@ func seedDictItems(db *gorm.DB) {
 func seedSystemConfigs(db *gorm.DB) {
 	items := []model.SystemConfig{
 		{ConfigKey: "site.title", ConfigValue: "Admin Demo", Name: "站点标题", Group: "site", ValueType: "string", Remark: "后台系统标题"},
+		{ConfigKey: "site.description", ConfigValue: "可复用后台管理系统基座", Name: "站点描述", Group: "site", ValueType: "string", Remark: "站点描述文案"},
 		{ConfigKey: "site.logo", ConfigValue: "/logo.png", Name: "站点 Logo", Group: "site", ValueType: "string", Remark: "站点 logo 地址"},
+		{ConfigKey: "site.maintenance_mode", ConfigValue: "false", Name: "维护模式", Group: "site", ValueType: "boolean", Remark: "是否启用维护模式"},
 		{ConfigKey: "security.login_captcha", ConfigValue: "false", Name: "登录验证码", Group: "security", ValueType: "boolean", Remark: "是否启用登录验证码"},
+		{ConfigKey: "security.password_min_length", ConfigValue: "8", Name: "密码最小长度", Group: "security", ValueType: "number", Remark: "密码安全策略"},
+		{ConfigKey: "security.two_factor_auth", ConfigValue: "false", Name: "双重认证", Group: "security", ValueType: "boolean", Remark: "是否要求双重认证"},
+		{ConfigKey: "security.session_timeout", ConfigValue: "30", Name: "会话超时", Group: "security", ValueType: "number", Remark: "单位：分钟"},
+		{ConfigKey: "security.max_login_attempts", ConfigValue: "5", Name: "登录失败次数", Group: "security", ValueType: "number", Remark: "超过次数可触发锁定策略"},
+		{ConfigKey: "email.smtp_server", ConfigValue: "smtp.example.com", Name: "SMTP服务器", Group: "email", ValueType: "string", Remark: "SMTP 地址"},
+		{ConfigKey: "email.smtp_port", ConfigValue: "587", Name: "SMTP端口", Group: "email", ValueType: "number", Remark: "SMTP 端口"},
+		{ConfigKey: "email.username", ConfigValue: "user@example.com", Name: "用户名", Group: "email", ValueType: "string", Remark: "发信账号"},
+		{ConfigKey: "email.password", ConfigValue: "", Name: "密码", Group: "email", ValueType: "string", Remark: "发信密码"},
+		{ConfigKey: "email.sender_email", ConfigValue: "noreply@example.com", Name: "发件人邮箱", Group: "email", ValueType: "string", Remark: "默认发件邮箱"},
 	}
 	for _, item := range items {
 		db.Where("config_key = ?", item.ConfigKey).FirstOrCreate(&model.SystemConfig{}, item)
