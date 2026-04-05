@@ -1,6 +1,6 @@
 # admin-demo-go
 
-基于 `Gin + GORM + Redis + NSQ` 的后台管理系统后端基础骨架。
+基于 `Gin + GORM + Redis + NSQ` 的后台管理系统后端基础骨架，默认支持本地 SQLite 启动，适合作为新后台项目的可复用后端基座。
 
 ## 已实现基础能力
 
@@ -27,7 +27,7 @@
 - `cmd/server`：服务入口
 - `internal/config`：配置加载
 - `internal/bootstrap`：DB/Redis/NSQ 初始化
-- `internal/admin`：后台通用管理模块（用户/角色/菜单）
+- `internal/admin`：后台通用管理模块（用户/角色/菜单/字典/系统配置/操作日志）
 - `internal/handler`：HTTP 接口
 - `internal/service`：业务逻辑
 - `internal/repository`：数据访问
@@ -36,10 +36,14 @@
 
 ## 配置
 
-复制并修改 `configs/config.example.yaml`。  
-按你的要求，MySQL/Redis/NSQ 连接信息当前均为空，后续补齐即可。
+默认读取 `configs/config.example.yaml`，也可以通过环境变量 `ADMIN_DEMO_CONFIG` 指定配置文件。
 
-默认数据库名字段为 `admin_demo`。
+当前默认配置策略：
+
+- `mysql.dsn` 为空时，自动回退到本地 SQLite：`data/admin_demo.db`
+- `redis.addr` 为空时，跳过 Redis 初始化
+- `nsq.producer_addr` 为空时，跳过 NSQ 初始化
+- `storage.mode=local` 时，文件默认存到 `storage/`
 
 文件资源存储支持三种模式（仅改配置，不改前端交互）：
 
@@ -53,3 +57,22 @@
 go mod tidy
 go run ./cmd/server
 ```
+
+默认端口：`8889`
+
+健康检查：
+
+```bash
+curl http://127.0.0.1:8889/healthz
+```
+
+## 默认演示账号
+
+- 管理员：`admin / 123456`
+- 编辑员：`editor / 123456`
+- 测试员：`test / 123456`
+
+说明：
+
+- SQLite 模式下首次启动会自动建表并写入演示数据
+- Google 二次验证演示验证码默认为 `123456`
