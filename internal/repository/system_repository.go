@@ -61,6 +61,7 @@ func (r *SystemRepository) ListConfigs(pageNo, pageSize int, group, keyword stri
 	)
 
 	query := r.db.Model(&model.SystemConfig{})
+	query = query.Where("`group` <> ?", "storage")
 	if strings.TrimSpace(group) != "" {
 		query = query.Where("`group` = ?", strings.TrimSpace(group))
 	}
@@ -90,6 +91,22 @@ func (r *SystemRepository) DeleteConfigsByIDs(ids []uint) error {
 		return nil
 	}
 	return r.db.Where("id IN ?", ids).Delete(&model.SystemConfig{}).Error
+}
+
+func (r *SystemRepository) ValidateConfigDeletion(ids []uint) (bool, error) {
+	if len(ids) == 0 {
+		return false, nil
+	}
+	var list []model.SystemConfig
+	if err := r.db.Where("id IN ?", ids).Find(&list).Error; err != nil {
+		return false, err
+	}
+	for _, item := range list {
+		if strings.EqualFold(item.Group, "storage") || strings.HasPrefix(strings.ToLower(strings.TrimSpace(item.ConfigKey)), "storage.") {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (r *SystemRepository) CreateOperationLog(item *model.OperationLog) error {

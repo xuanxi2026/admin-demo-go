@@ -131,12 +131,9 @@ INSERT IGNORE INTO dict_items(dict_type, label, value, status, sort, remark) VAL
 ('user_status', '启用', 'enabled', 'enabled', 1, '用户状态'),
 ('user_status', '禁用', 'disabled', 'enabled', 2, '用户状态'),
 ('notice_level', '普通', 'normal', 'enabled', 1, '通知等级'),
-('notice_level', '重要', 'important', 'enabled', 2, '通知等级'),
-('storage_mode', '本地存储', 'local', 'enabled', 1, '存储模式'),
-('storage_mode', 'MinIO', 'minio', 'enabled', 2, '存储模式');
+('notice_level', '重要', 'important', 'enabled', 2, '通知等级');
 
 INSERT IGNORE INTO system_configs(config_key, config_value, name, `group`, value_type, remark) VALUES
 ('site.title', 'Admin Demo', '站点标题', 'site', 'string', '后台系统标题'),
 ('site.logo', '/logo.png', '站点 Logo', 'site', 'string', '站点 logo 地址'),
-('security.login_captcha', 'false', '登录验证码', 'security', 'boolean', '是否启用登录验证码'),
-('storage.default_mode', 'local', '默认存储模式', 'storage', 'string', '默认文件存储模式');
+('security.login_captcha', 'false', '登录验证码', 'security', 'boolean', '是否启用登录验证码');

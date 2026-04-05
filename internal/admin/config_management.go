@@ -20,6 +20,11 @@ func (m *Module) ConfigGetList(c *gin.Context) {
 	_ = c.ShouldBindJSON(&in)
 	in.PageNo, in.PageSize = normalizePage(in.PageNo, in.PageSize)
 
+	if strings.EqualFold(strings.TrimSpace(in.Group), "storage") {
+		response.List(c, "success", []gin.H{}, 0)
+		return
+	}
+
 	list, total, err := m.systemRepo.ListConfigs(in.PageNo, in.PageSize, in.Group, in.Keyword)
 	if err != nil {
 		response.Fail(c, ecode.InternalError, "查询系统配置失败")
@@ -28,6 +33,9 @@ func (m *Module) ConfigGetList(c *gin.Context) {
 
 	rows := make([]gin.H, 0, len(list))
 	for _, item := range list {
+		if isStorageConfig(item.ConfigKey, item.Group) {
+			continue
+		}
 		rows = append(rows, gin.H{
 			"id":          item.ID,
 			"configKey":   item.ConfigKey,
@@ -70,6 +78,10 @@ func (m *Module) ConfigDoEdit(c *gin.Context) {
 	}
 	if in.ValueType == "" {
 		in.ValueType = "string"
+	}
+	if isStorageConfig(in.ConfigKey, in.Group) {
+		response.Fail(c, ecode.InvalidParams, "文件存储模式仅允许通过服务端配置文件调整")
+		return
 	}
 
 	updates := map[string]any{
@@ -125,6 +137,15 @@ func (m *Module) ConfigDoDelete(c *gin.Context) {
 		response.Fail(c, ecode.InvalidParams, "参数错误")
 		return
 	}
+	protected, err := m.systemRepo.ValidateConfigDeletion(parseIDs(in.IDs))
+	if err != nil {
+		response.Fail(c, ecode.InternalError, "校验系统配置失败")
+		return
+	}
+	if protected {
+		response.Fail(c, ecode.InvalidParams, "文件存储模式仅允许通过服务端配置文件调整")
+		return
+	}
 	if err := m.systemRepo.DeleteConfigsByIDs(parseIDs(in.IDs)); err != nil {
 		response.Fail(c, ecode.InternalError, "删除系统配置失败")
 		return
@@ -144,4 +165,10 @@ func (m *Module) ConfigDoDelete(c *gin.Context) {
 		Detail:    "删除系统配置",
 	})
 	response.OK(c, "删除成功", nil)
+}
+
+func isStorageConfig(configKey, group string) bool {
+	key := strings.ToLower(strings.TrimSpace(configKey))
+	group = strings.ToLower(strings.TrimSpace(group))
+	return group == "storage" || strings.HasPrefix(key, "storage.")
 }

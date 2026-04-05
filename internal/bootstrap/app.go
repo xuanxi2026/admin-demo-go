@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"time"
 
 	"admin-demo-go/internal/config"
@@ -16,7 +14,6 @@ import (
 	"github.com/nsqio/go-nsq"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -34,10 +31,9 @@ func NewApp(cfg *config.Config) (*App, error) {
 
 	db, err := initDB(cfg)
 	if err != nil {
-		log.Printf("init mysql skipped: %v", err)
-	} else {
-		app.DB = db
+		return nil, fmt.Errorf("init mysql failed: %w", err)
 	}
+	app.DB = db
 
 	rdb, err := initRedis(cfg)
 	if err != nil {
@@ -65,32 +61,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 
 func initDB(cfg *config.Config) (*gorm.DB, error) {
 	if cfg.MySQL.DSN == "" {
-		if err := os.MkdirAll("data", 0o755); err != nil {
-			return nil, fmt.Errorf("create sqlite data dir failed: %w", err)
-		}
-		sqlitePath := filepath.Join("data", "admin_demo.db")
-		db, err := gorm.Open(sqlite.Open(sqlitePath), &gorm.Config{})
-		if err != nil {
-			return nil, fmt.Errorf("mysql dsn is empty and sqlite fallback failed: %w", err)
-		}
-		if err = db.AutoMigrate(
-			&model.User{},
-			&model.Role{},
-			&model.Permission{},
-			&model.Menu{},
-			&model.DictItem{},
-			&model.SystemConfig{},
-			&model.OperationLog{},
-			&model.UserRole{},
-			&model.RolePermission{},
-			&model.RoleMenu{},
-		); err != nil {
-			return nil, err
-		}
-		seedDemoData(db)
-		ensureDemoUsers(db, cfg.App.Mode)
-		log.Printf("mysql dsn is empty, fallback to sqlite: %s", sqlitePath)
-		return db, nil
+		return nil, fmt.Errorf("mysql dsn is empty")
 	}
 	db, err := gorm.Open(mysql.Open(cfg.MySQL.DSN), &gorm.Config{})
 	if err != nil {
@@ -288,8 +259,6 @@ func seedDictItems(db *gorm.DB) {
 		{DictType: "user_status", Label: "禁用", Value: "disabled", Status: "enabled", Sort: 2, Remark: "用户状态"},
 		{DictType: "notice_level", Label: "普通", Value: "normal", Status: "enabled", Sort: 1, Remark: "通知等级"},
 		{DictType: "notice_level", Label: "重要", Value: "important", Status: "enabled", Sort: 2, Remark: "通知等级"},
-		{DictType: "storage_mode", Label: "本地存储", Value: "local", Status: "enabled", Sort: 1, Remark: "存储模式"},
-		{DictType: "storage_mode", Label: "MinIO", Value: "minio", Status: "enabled", Sort: 2, Remark: "存储模式"},
 	}
 	for _, item := range items {
 		db.Where("dict_type = ? AND value = ?", item.DictType, item.Value).FirstOrCreate(&model.DictItem{}, item)
@@ -301,7 +270,6 @@ func seedSystemConfigs(db *gorm.DB) {
 		{ConfigKey: "site.title", ConfigValue: "Admin Demo", Name: "站点标题", Group: "site", ValueType: "string", Remark: "后台系统标题"},
 		{ConfigKey: "site.logo", ConfigValue: "/logo.png", Name: "站点 Logo", Group: "site", ValueType: "string", Remark: "站点 logo 地址"},
 		{ConfigKey: "security.login_captcha", ConfigValue: "false", Name: "登录验证码", Group: "security", ValueType: "boolean", Remark: "是否启用登录验证码"},
-		{ConfigKey: "storage.default_mode", ConfigValue: "local", Name: "默认存储模式", Group: "storage", ValueType: "string", Remark: "默认文件存储模式"},
 	}
 	for _, item := range items {
 		db.Where("config_key = ?", item.ConfigKey).FirstOrCreate(&model.SystemConfig{}, item)

@@ -1,6 +1,6 @@
 # admin-demo-go
 
-基于 `Gin + GORM + Redis + NSQ` 的后台管理系统后端基础骨架，默认支持本地 SQLite 启动，适合作为新后台项目的可复用后端基座。
+基于 `Gin + GORM + Redis + NSQ` 的后台管理系统后端基础骨架，默认使用 MySQL，适合作为新后台项目的可复用后端基座。
 
 ## 已实现基础能力
 
@@ -40,10 +40,11 @@
 
 当前默认配置策略：
 
-- `mysql.dsn` 为空时，自动回退到本地 SQLite：`data/admin_demo.db`
+- `mysql.dsn` 必填，服务启动时必须连接 MySQL
 - `redis.addr` 为空时，跳过 Redis 初始化
 - `nsq.producer_addr` 为空时，跳过 NSQ 初始化
 - `storage.mode=local` 时，文件默认存到 `storage/`
+- 文件存储模式仅允许通过服务端配置文件切换，不通过前端页面切换
 
 文件资源存储支持三种模式（仅改配置，不改前端交互）：
 
@@ -74,5 +75,5 @@ curl http://127.0.0.1:8889/healthz
 
 说明：
 
-- SQLite 模式下首次启动会自动建表并写入演示数据
+- 首次启动会自动建表并写入演示数据
 - Google 二次验证演示验证码默认为 `123456`
