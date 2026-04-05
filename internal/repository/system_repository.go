@@ -209,3 +209,49 @@ func (r *SystemRepository) DeleteNoticesByIDs(ids []uint) error {
 	}
 	return r.db.Where("id IN ?", ids).Delete(&model.Notice{}).Error
 }
+
+func (r *SystemRepository) ListPublishedNoticesWithReadStatus(userID uint, pageNo, pageSize int) ([]model.Notice, map[uint]time.Time, int64, error) {
+	var (
+		list  []model.Notice
+		total int64
+	)
+	query := r.db.Model(&model.Notice{}).Where("status = ?", "published")
+	if err := query.Count(&total).Error; err != nil {
+		return nil, nil, 0, err
+	}
+	offset := (pageNo - 1) * pageSize
+	if err := query.Order("sort asc, id desc").Offset(offset).Limit(pageSize).Find(&list).Error; err != nil {
+		return nil, nil, 0, err
+	}
+	readMap := map[uint]time.Time{}
+	if len(list) == 0 {
+		return list, readMap, total, nil
+	}
+	noticeIDs := make([]uint, 0, len(list))
+	for _, item := range list {
+		noticeIDs = append(noticeIDs, item.ID)
+	}
+	var reads []model.NoticeRead
+	if err := r.db.Where("user_id = ? AND notice_id IN ?", userID, noticeIDs).Find(&reads).Error; err != nil {
+		return nil, nil, 0, err
+	}
+	for _, item := range reads {
+		readMap[item.NoticeID] = item.ReadAt
+	}
+	return list, readMap, total, nil
+}
+
+func (r *SystemRepository) MarkNoticeRead(userID, noticeID uint) error {
+	item := model.NoticeRead{
+		UserID:   userID,
+		NoticeID: noticeID,
+		ReadAt:   time.Now(),
+	}
+	return r.db.Where("user_id = ? AND notice_id = ?", userID, noticeID).
+		Assign(model.NoticeRead{ReadAt: item.ReadAt}).
+		FirstOrCreate(&item).Error
+}
+
+func (r *SystemRepository) MarkNoticeUnread(userID, noticeID uint) error {
+	return r.db.Where("user_id = ? AND notice_id = ?", userID, noticeID).Delete(&model.NoticeRead{}).Error
+}

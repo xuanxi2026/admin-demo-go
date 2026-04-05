@@ -64,3 +64,12 @@ type Notice struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
+
+type NoticeRead struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	UserID    uint      `gorm:"not null;uniqueIndex:idx_notice_read_user_notice" json:"user_id"`
+	NoticeID  uint      `gorm:"not null;uniqueIndex:idx_notice_read_user_notice;index" json:"notice_id"`
+	ReadAt    time.Time `gorm:"not null" json:"read_at"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}

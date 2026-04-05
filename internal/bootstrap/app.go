@@ -84,6 +84,7 @@ func initDB(cfg *config.Config) (*gorm.DB, error) {
 		&model.OperationLog{},
 		&model.Department{},
 		&model.Notice{},
+		&model.NoticeRead{},
 		&model.UserRole{},
 		&model.RolePermission{},
 		&model.RoleMenu{},

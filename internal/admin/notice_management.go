@@ -2,6 +2,7 @@ package admin
 
 import (
 	"strings"
+	"time"
 
 	"admin-demo-go/internal/model"
 	"admin-demo-go/internal/pkg/ecode"
@@ -146,4 +147,69 @@ func (m *Module) NoticeDoDelete(c *gin.Context) {
 		Detail:    "删除通知公告",
 	})
 	response.OK(c, "删除成功", nil)
+}
+
+func (m *Module) NoticeCenterGetList(c *gin.Context) {
+	var in struct {
+		PageNo   int `json:"pageNo"`
+		PageSize int `json:"pageSize"`
+	}
+	_ = c.ShouldBindJSON(&in)
+	in.PageNo, in.PageSize = normalizePage(in.PageNo, in.PageSize)
+	list, readMap, total, err := m.systemRepo.ListPublishedNoticesWithReadStatus(c.GetUint("userID"), in.PageNo, in.PageSize)
+	if err != nil {
+		response.Fail(c, ecode.InternalError, "查询通知中心失败")
+		return
+	}
+	rows := make([]gin.H, 0, len(list))
+	for _, item := range list {
+		readAt, read := readMap[item.ID]
+		row := gin.H{
+			"id":        item.ID,
+			"title":     item.Title,
+			"content":   item.Content,
+			"level":     item.Level,
+			"status":    item.Status,
+			"publisher": item.Publisher,
+			"sort":      item.Sort,
+			"remark":    item.Remark,
+			"datatime":  item.UpdatedAt.Format("2006-01-02 15:04:05"),
+			"read":      read,
+		}
+		if read {
+			row["readAt"] = readAt.Format(time.DateTime)
+		}
+		rows = append(rows, row)
+	}
+	response.List(c, "success", rows, total)
+}
+
+func (m *Module) NoticeCenterMarkRead(c *gin.Context) {
+	var in struct {
+		NoticeID uint `json:"noticeId"`
+	}
+	if err := c.ShouldBindJSON(&in); err != nil || in.NoticeID == 0 {
+		response.Fail(c, ecode.InvalidParams, "参数错误")
+		return
+	}
+	if err := m.systemRepo.MarkNoticeRead(c.GetUint("userID"), in.NoticeID); err != nil {
+		response.Fail(c, ecode.InternalError, "标记已读失败")
+		return
+	}
+	response.OK(c, "标记已读成功", nil)
+}
+
+func (m *Module) NoticeCenterMarkUnread(c *gin.Context) {
+	var in struct {
+		NoticeID uint `json:"noticeId"`
+	}
+	if err := c.ShouldBindJSON(&in); err != nil || in.NoticeID == 0 {
+		response.Fail(c, ecode.InvalidParams, "参数错误")
+		return
+	}
+	if err := m.systemRepo.MarkNoticeUnread(c.GetUint("userID"), in.NoticeID); err != nil {
+		response.Fail(c, ecode.InternalError, "标记未读失败")
+		return
+	}
+	response.OK(c, "标记未读成功", nil)
 }
