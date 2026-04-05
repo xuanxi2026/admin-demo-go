@@ -6,20 +6,20 @@ app:
   jwt_expire_hours: 24
 
 mysql:
-  dsn: "root:shatang@tcp(192.168.5.12:3306)/admin_demo?charset=utf8mb4&parseTime=True&loc=Local"
+  dsn: "" # 留空时自动回退到本地 SQLite(data/admin_demo.db)
   database: "admin_demo"
   max_idle_conns: 10
   max_open_conns: 50
   conn_max_lifetime_minutes: 60
 
 redis:
-  addr: "192.168.5.12:6379"
-  password: "shatang"
+  addr: "" # 可选，留空则跳过 Redis
+  password: ""
   db: 0
 
 nsq:
-  producer_addr: "192.168.5.12:4150"
-  consumer_addr: "192.168.5.12:4160"
+  producer_addr: "" # 可选，留空则跳过 NSQ
+  consumer_addr: ""
   topic: "admin_demo_events"
   channel: "admin_demo_channel"
 

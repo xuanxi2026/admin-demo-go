@@ -1,11 +1,13 @@
 package admin
 
 import (
+	"strings"
 	"time"
 
 	"admin-demo-go/internal/model"
 	"admin-demo-go/internal/pkg/ecode"
 	"admin-demo-go/internal/pkg/password"
+	"admin-demo-go/internal/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,15 +19,10 @@ func (m *Module) UserGetList(c *gin.Context) {
 		Username string `json:"username"`
 	}
 	_ = c.ShouldBindJSON(&in)
-	if in.PageNo <= 0 {
-		in.PageNo = 1
-	}
-	if in.PageSize <= 0 {
-		in.PageSize = 10
-	}
+	in.PageNo, in.PageSize = normalizePage(in.PageNo, in.PageSize)
 	list, total, err := m.userRepo.List(in.PageNo, in.PageSize, in.Username)
 	if err != nil {
-		c.JSON(200, gin.H{"code": ecode.InternalError, "msg": "查询用户失败", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InternalError, "查询用户失败")
 		return
 	}
 	rows := make([]gin.H, 0, len(list))
@@ -39,13 +36,7 @@ func (m *Module) UserGetList(c *gin.Context) {
 			"datatime":    u.UpdatedAt.Format("2006-01-02 15:04:05"),
 		})
 	}
-	c.JSON(200, gin.H{
-		"code":       200,
-		"msg":        "success",
-		"data":       rows,
-		"totalCount": total,
-		"request_id": c.GetString("request_id"),
-	})
+	response.List(c, "success", rows, total)
 }
 
 func (m *Module) UserDoEdit(c *gin.Context) {
@@ -57,11 +48,11 @@ func (m *Module) UserDoEdit(c *gin.Context) {
 		Permissions []string `json:"permissions"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {
-		c.JSON(200, gin.H{"code": ecode.InvalidParams, "msg": "参数错误", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InvalidParams, "参数错误")
 		return
 	}
 	if in.Username == "" {
-		c.JSON(200, gin.H{"code": ecode.InvalidParams, "msg": "用户名不能为空", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InvalidParams, "用户名不能为空")
 		return
 	}
 	if len(in.Permissions) == 0 {
@@ -81,24 +72,24 @@ func (m *Module) UserDoEdit(c *gin.Context) {
 		if in.Password != "" {
 			hash, err := password.Hash(in.Password)
 			if err != nil {
-				c.JSON(200, gin.H{"code": ecode.InternalError, "msg": "密码加密失败", "request_id": c.GetString("request_id")})
+				response.Fail(c, ecode.InternalError, "密码加密失败")
 				return
 			}
 			updates["password_hash"] = hash
 		}
 		if err := m.userRepo.UpdateByID(in.ID, updates); err != nil {
-			c.JSON(200, gin.H{"code": ecode.InternalError, "msg": "更新失败", "request_id": c.GetString("request_id")})
+			response.Fail(c, ecode.InternalError, "更新失败")
 			return
 		}
 		_ = m.rbacRepo.ReplaceUserRoles(in.ID, in.Permissions)
 	} else {
 		if in.Password == "" {
-			c.JSON(200, gin.H{"code": ecode.InvalidParams, "msg": "密码不能为空", "request_id": c.GetString("request_id")})
+			response.Fail(c, ecode.InvalidParams, "密码不能为空")
 			return
 		}
 		hash, err := password.Hash(in.Password)
 		if err != nil {
-			c.JSON(200, gin.H{"code": ecode.InternalError, "msg": "密码加密失败", "request_id": c.GetString("request_id")})
+			response.Fail(c, ecode.InternalError, "密码加密失败")
 			return
 		}
 		user := &model.User{
@@ -112,7 +103,7 @@ func (m *Module) UserDoEdit(c *gin.Context) {
 			UpdatedAt:    time.Now(),
 		}
 		if err = m.userRepo.Create(user); err != nil {
-			c.JSON(200, gin.H{"code": ecode.InternalError, "msg": "创建失败", "request_id": c.GetString("request_id")})
+			response.Fail(c, ecode.InternalError, "创建失败")
 			return
 		}
 		_ = m.rbacRepo.ReplaceUserRoles(user.ID, in.Permissions)
@@ -122,7 +113,16 @@ func (m *Module) UserDoEdit(c *gin.Context) {
 		"operator":   c.GetString("username"),
 		"target":     in.Username,
 	})
-	c.JSON(200, gin.H{"code": 200, "msg": "保存成功", "request_id": c.GetString("request_id")})
+	m.recordOperation(operationContext{
+		Module:    "user",
+		Action:    "save",
+		Operator:  c.GetString("username"),
+		Target:    in.Username,
+		RequestID: c.GetString("request_id"),
+		IP:        c.ClientIP(),
+		Detail:    buildDetail("email="+in.Email, "roles="+strings.Join(in.Permissions, ",")),
+	})
+	response.OK(c, "保存成功", nil)
 }
 
 func (m *Module) UserDoDelete(c *gin.Context) {
@@ -130,12 +130,12 @@ func (m *Module) UserDoDelete(c *gin.Context) {
 		IDs string `json:"ids"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {
-		c.JSON(200, gin.H{"code": ecode.InvalidParams, "msg": "参数错误", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InvalidParams, "参数错误")
 		return
 	}
 	ids := parseIDs(in.IDs)
 	if err := m.userRepo.DeleteByIDs(ids); err != nil {
-		c.JSON(200, gin.H{"code": ecode.InternalError, "msg": "删除失败", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InternalError, "删除失败")
 		return
 	}
 	m.pub.Publish("user_mgmt_delete", map[string]any{
@@ -143,5 +143,14 @@ func (m *Module) UserDoDelete(c *gin.Context) {
 		"operator":   c.GetString("username"),
 		"ids":        in.IDs,
 	})
-	c.JSON(200, gin.H{"code": 200, "msg": "删除成功", "request_id": c.GetString("request_id")})
+	m.recordOperation(operationContext{
+		Module:    "user",
+		Action:    "delete",
+		Operator:  c.GetString("username"),
+		Target:    joinIDs(in.IDs),
+		RequestID: c.GetString("request_id"),
+		IP:        c.ClientIP(),
+		Detail:    "删除用户",
+	})
+	response.OK(c, "删除成功", nil)
 }

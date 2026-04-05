@@ -11,6 +11,16 @@ func OK(c *gin.Context, msg string, data any) {
 	})
 }
 
+func List(c *gin.Context, msg string, data any, totalCount int64) {
+	c.JSON(200, gin.H{
+		"code":       200,
+		"msg":        msg,
+		"data":       data,
+		"totalCount": totalCount,
+		"request_id": requestID(c),
+	})
+}
+
 func Fail(c *gin.Context, code int, msg string) {
 	c.JSON(200, gin.H{
 		"code":       code,

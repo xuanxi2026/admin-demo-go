@@ -2,12 +2,14 @@ package admin
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/url"
 	"path/filepath"
 	"strings"
 
 	"admin-demo-go/internal/pkg/ecode"
+	"admin-demo-go/internal/pkg/response"
 	"admin-demo-go/internal/storage"
 
 	"github.com/gin-gonic/gin"
@@ -20,7 +22,7 @@ type fileDeleteRequest struct {
 func (m *Module) FilePublicList(c *gin.Context) {
 	rows, err := m.storage.List(context.Background(), storage.AreaPublic)
 	if err != nil {
-		c.JSON(200, gin.H{"code": ecode.InternalError, "msg": "查询公开文件失败", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InternalError, "查询公开文件失败")
 		return
 	}
 	data := make([]gin.H, 0, len(rows))
@@ -32,13 +34,13 @@ func (m *Module) FilePublicList(c *gin.Context) {
 			"downloadUrl": m.publicDownloadURL(item.Name),
 		})
 	}
-	c.JSON(200, gin.H{"code": 200, "msg": "success", "data": data, "request_id": c.GetString("request_id")})
+	response.OK(c, "success", data)
 }
 
 func (m *Module) FilePrivateList(c *gin.Context) {
 	rows, err := m.storage.List(context.Background(), storage.AreaPrivate)
 	if err != nil {
-		c.JSON(200, gin.H{"code": ecode.InternalError, "msg": "查询私有文件失败", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InternalError, "查询私有文件失败")
 		return
 	}
 	data := make([]gin.H, 0, len(rows))
@@ -49,19 +51,19 @@ func (m *Module) FilePrivateList(c *gin.Context) {
 			"updatedAt": item.UpdatedAt.Format("2006-01-02 15:04:05"),
 		})
 	}
-	c.JSON(200, gin.H{"code": 200, "msg": "success", "data": data, "request_id": c.GetString("request_id")})
+	response.OK(c, "success", data)
 }
 
 func (m *Module) FilePublicUpload(c *gin.Context) {
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
-		c.JSON(200, gin.H{"code": ecode.InvalidParams, "msg": "请选择上传文件", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InvalidParams, "请选择上传文件")
 		return
 	}
 	defer file.Close()
 	info, err := m.storage.Upload(context.Background(), storage.AreaPublic, header.Filename, file, header.Size)
 	if err != nil {
-		c.JSON(200, gin.H{"code": ecode.InvalidParams, "msg": err.Error(), "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InvalidParams, err.Error())
 		return
 	}
 	m.pub.Publish("file_public_upload", map[string]any{
@@ -69,25 +71,34 @@ func (m *Module) FilePublicUpload(c *gin.Context) {
 		"operator":   c.GetString("username"),
 		"file_name":  info.Name,
 	})
+	m.recordOperation(operationContext{
+		Module:    "file",
+		Action:    "upload_public",
+		Operator:  c.GetString("username"),
+		Target:    info.Name,
+		RequestID: c.GetString("request_id"),
+		IP:        c.ClientIP(),
+		Detail:    buildDetail("area=public", fmt.Sprintf("size=%d", info.Size)),
+	})
 	row := gin.H{
 		"name":        info.Name,
 		"size":        info.Size,
 		"updatedAt":   info.UpdatedAt.Format("2006-01-02 15:04:05"),
 		"downloadUrl": m.publicDownloadURL(info.Name),
 	}
-	c.JSON(200, gin.H{"code": 200, "msg": "上传成功", "data": row, "request_id": c.GetString("request_id")})
+	response.OK(c, "上传成功", row)
 }
 
 func (m *Module) FilePrivateUpload(c *gin.Context) {
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
-		c.JSON(200, gin.H{"code": ecode.InvalidParams, "msg": "请选择上传文件", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InvalidParams, "请选择上传文件")
 		return
 	}
 	defer file.Close()
 	info, err := m.storage.Upload(context.Background(), storage.AreaPrivate, header.Filename, file, header.Size)
 	if err != nil {
-		c.JSON(200, gin.H{"code": ecode.InvalidParams, "msg": err.Error(), "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InvalidParams, err.Error())
 		return
 	}
 	m.pub.Publish("file_private_upload", map[string]any{
@@ -95,12 +106,21 @@ func (m *Module) FilePrivateUpload(c *gin.Context) {
 		"operator":   c.GetString("username"),
 		"file_name":  info.Name,
 	})
+	m.recordOperation(operationContext{
+		Module:    "file",
+		Action:    "upload_private",
+		Operator:  c.GetString("username"),
+		Target:    info.Name,
+		RequestID: c.GetString("request_id"),
+		IP:        c.ClientIP(),
+		Detail:    buildDetail("area=private", fmt.Sprintf("size=%d", info.Size)),
+	})
 	row := gin.H{
 		"name":      info.Name,
 		"size":      info.Size,
 		"updatedAt": info.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
-	c.JSON(200, gin.H{"code": 200, "msg": "上传成功", "data": row, "request_id": c.GetString("request_id")})
+	response.OK(c, "上传成功", row)
 }
 
 func (m *Module) FilePublicDownload(c *gin.Context) {
@@ -127,12 +147,12 @@ func (m *Module) FilePrivateDownload(c *gin.Context) {
 	decoded, _ := url.PathUnescape(raw)
 	name := sanitizeFileName(decoded)
 	if name == "" {
-		c.JSON(200, gin.H{"code": ecode.InvalidParams, "msg": "文件名不合法", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InvalidParams, "文件名不合法")
 		return
 	}
 	reader, err := m.storage.Download(context.Background(), storage.AreaPrivate, name)
 	if err != nil {
-		c.JSON(200, gin.H{"code": ecode.InternalError, "msg": "文件不存在", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InternalError, "文件不存在")
 		return
 	}
 	defer reader.Close()
@@ -140,6 +160,15 @@ func (m *Module) FilePrivateDownload(c *gin.Context) {
 		"request_id": c.GetString("request_id"),
 		"operator":   c.GetString("username"),
 		"file_name":  name,
+	})
+	m.recordOperation(operationContext{
+		Module:    "file",
+		Action:    "download_private",
+		Operator:  c.GetString("username"),
+		Target:    name,
+		RequestID: c.GetString("request_id"),
+		IP:        c.ClientIP(),
+		Detail:    "下载私有文件",
 	})
 	c.Header("Content-Disposition", "attachment; filename=\""+name+"\"")
 	c.Stream(func(w io.Writer) bool {
@@ -151,16 +180,16 @@ func (m *Module) FilePrivateDownload(c *gin.Context) {
 func (m *Module) FilePublicDelete(c *gin.Context) {
 	var req fileDeleteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(200, gin.H{"code": ecode.InvalidParams, "msg": "参数不合法", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InvalidParams, "参数不合法")
 		return
 	}
 	name := sanitizeFileName(req.Name)
 	if name == "" {
-		c.JSON(200, gin.H{"code": ecode.InvalidParams, "msg": "文件名不合法", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InvalidParams, "文件名不合法")
 		return
 	}
 	if err := m.storage.Delete(context.Background(), storage.AreaPublic, name); err != nil {
-		c.JSON(200, gin.H{"code": ecode.InternalError, "msg": "删除公开文件失败", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InternalError, "删除公开文件失败")
 		return
 	}
 	m.pub.Publish("file_public_delete", map[string]any{
@@ -168,22 +197,31 @@ func (m *Module) FilePublicDelete(c *gin.Context) {
 		"operator":   c.GetString("username"),
 		"file_name":  name,
 	})
-	c.JSON(200, gin.H{"code": 200, "msg": "删除成功", "request_id": c.GetString("request_id")})
+	m.recordOperation(operationContext{
+		Module:    "file",
+		Action:    "delete_public",
+		Operator:  c.GetString("username"),
+		Target:    name,
+		RequestID: c.GetString("request_id"),
+		IP:        c.ClientIP(),
+		Detail:    "删除公开文件",
+	})
+	response.OK(c, "删除成功", nil)
 }
 
 func (m *Module) FilePrivateDelete(c *gin.Context) {
 	var req fileDeleteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(200, gin.H{"code": ecode.InvalidParams, "msg": "参数不合法", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InvalidParams, "参数不合法")
 		return
 	}
 	name := sanitizeFileName(req.Name)
 	if name == "" {
-		c.JSON(200, gin.H{"code": ecode.InvalidParams, "msg": "文件名不合法", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InvalidParams, "文件名不合法")
 		return
 	}
 	if err := m.storage.Delete(context.Background(), storage.AreaPrivate, name); err != nil {
-		c.JSON(200, gin.H{"code": ecode.InternalError, "msg": "删除私有文件失败", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InternalError, "删除私有文件失败")
 		return
 	}
 	m.pub.Publish("file_private_delete", map[string]any{
@@ -191,7 +229,16 @@ func (m *Module) FilePrivateDelete(c *gin.Context) {
 		"operator":   c.GetString("username"),
 		"file_name":  name,
 	})
-	c.JSON(200, gin.H{"code": 200, "msg": "删除成功", "request_id": c.GetString("request_id")})
+	m.recordOperation(operationContext{
+		Module:    "file",
+		Action:    "delete_private",
+		Operator:  c.GetString("username"),
+		Target:    name,
+		RequestID: c.GetString("request_id"),
+		IP:        c.ClientIP(),
+		Detail:    "删除私有文件",
+	})
+	response.OK(c, "删除成功", nil)
 }
 
 func sanitizeFileName(name string) string {

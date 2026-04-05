@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"time"
 
 	"admin-demo-go/internal/config"
@@ -63,7 +65,11 @@ func NewApp(cfg *config.Config) (*App, error) {
 
 func initDB(cfg *config.Config) (*gorm.DB, error) {
 	if cfg.MySQL.DSN == "" {
-		db, err := gorm.Open(sqlite.Open("file:admin_demo?mode=memory&cache=shared"), &gorm.Config{})
+		if err := os.MkdirAll("data", 0o755); err != nil {
+			return nil, fmt.Errorf("create sqlite data dir failed: %w", err)
+		}
+		sqlitePath := filepath.Join("data", "admin_demo.db")
+		db, err := gorm.Open(sqlite.Open(sqlitePath), &gorm.Config{})
 		if err != nil {
 			return nil, fmt.Errorf("mysql dsn is empty and sqlite fallback failed: %w", err)
 		}
@@ -72,6 +78,9 @@ func initDB(cfg *config.Config) (*gorm.DB, error) {
 			&model.Role{},
 			&model.Permission{},
 			&model.Menu{},
+			&model.DictItem{},
+			&model.SystemConfig{},
+			&model.OperationLog{},
 			&model.UserRole{},
 			&model.RolePermission{},
 			&model.RoleMenu{},
@@ -80,6 +89,7 @@ func initDB(cfg *config.Config) (*gorm.DB, error) {
 		}
 		seedDemoData(db)
 		ensureDemoUsers(db, cfg.App.Mode)
+		log.Printf("mysql dsn is empty, fallback to sqlite: %s", sqlitePath)
 		return db, nil
 	}
 	db, err := gorm.Open(mysql.Open(cfg.MySQL.DSN), &gorm.Config{})
@@ -98,6 +108,9 @@ func initDB(cfg *config.Config) (*gorm.DB, error) {
 		&model.Role{},
 		&model.Permission{},
 		&model.Menu{},
+		&model.DictItem{},
+		&model.SystemConfig{},
+		&model.OperationLog{},
 		&model.UserRole{},
 		&model.RolePermission{},
 		&model.RoleMenu{},
@@ -197,6 +210,9 @@ func seedRBAC(db *gorm.DB) {
 		{Key: "Permission", Parent: "Vab", Menu: model.Menu{Path: "permissions", Name: "Permission", Component: "@/views/vab/permissions/index", Title: "角色权限", PermissionCode: "rbac:view", Sort: 11}},
 		{Key: "PersonnelManagement", Parent: "", Menu: model.Menu{Path: "/personnelManagement", Name: "PersonnelManagement", Component: "Layout", Redirect: "noRedirect", Title: "配置", Icon: "users-cog", Sort: 20}},
 		{Key: "RoleManagement", Parent: "PersonnelManagement", Menu: model.Menu{Path: "roleManagement", Name: "RoleManagement", Component: "@/views/personnelManagement/roleManagement/index", Title: "角色管理", PermissionCode: "rbac:view", Sort: 21}},
+		{Key: "DictManagement", Parent: "PersonnelManagement", Menu: model.Menu{Path: "dictManagement", Name: "DictManagement", Component: "@/views/personnelManagement/dictManagement/index", Title: "字典管理", PermissionCode: "rbac:view", Sort: 22}},
+		{Key: "ConfigManagement", Parent: "PersonnelManagement", Menu: model.Menu{Path: "configManagement", Name: "ConfigManagement", Component: "@/views/personnelManagement/configManagement/index", Title: "系统配置", PermissionCode: "rbac:view", Sort: 23}},
+		{Key: "OperationLog", Parent: "PersonnelManagement", Menu: model.Menu{Path: "operationLog", Name: "OperationLog", Component: "@/views/personnelManagement/operationLog/index", Title: "操作日志", PermissionCode: "rbac:view", Sort: 24}},
 	}
 	menuPK := map[string]uint{}
 	for _, def := range menuDefs {
@@ -239,12 +255,15 @@ func seedRBAC(db *gorm.DB) {
 	bindRolePerms(db, roleID["editor"], editorPerms, permID)
 	bindRolePerms(db, roleID["test"], testPerms, permID)
 
-	adminMenus := []string{"Root", "Index", "Vab", "Permission", "PersonnelManagement", "RoleManagement"}
+	adminMenus := []string{"Root", "Index", "Vab", "Permission", "PersonnelManagement", "RoleManagement", "DictManagement", "ConfigManagement", "OperationLog"}
 	editorMenus := []string{"Root", "Index", "Vab", "Permission"}
 	testMenus := []string{"Root", "Index"}
 	bindRoleMenus(db, roleID["admin"], adminMenus, menuID)
 	bindRoleMenus(db, roleID["editor"], editorMenus, menuID)
 	bindRoleMenus(db, roleID["test"], testMenus, menuID)
+
+	seedDictItems(db)
+	seedSystemConfigs(db)
 }
 
 func bindRolePerms(db *gorm.DB, roleID uint, codes []string, permIDMap map[string]uint) {
@@ -260,6 +279,32 @@ func bindRoleMenus(db *gorm.DB, roleID uint, names []string, menuIDMap map[strin
 		if mid, ok := menuIDMap[name]; ok {
 			db.FirstOrCreate(&model.RoleMenu{}, model.RoleMenu{RoleID: roleID, MenuID: mid})
 		}
+	}
+}
+
+func seedDictItems(db *gorm.DB) {
+	items := []model.DictItem{
+		{DictType: "user_status", Label: "启用", Value: "enabled", Status: "enabled", Sort: 1, Remark: "用户状态"},
+		{DictType: "user_status", Label: "禁用", Value: "disabled", Status: "enabled", Sort: 2, Remark: "用户状态"},
+		{DictType: "notice_level", Label: "普通", Value: "normal", Status: "enabled", Sort: 1, Remark: "通知等级"},
+		{DictType: "notice_level", Label: "重要", Value: "important", Status: "enabled", Sort: 2, Remark: "通知等级"},
+		{DictType: "storage_mode", Label: "本地存储", Value: "local", Status: "enabled", Sort: 1, Remark: "存储模式"},
+		{DictType: "storage_mode", Label: "MinIO", Value: "minio", Status: "enabled", Sort: 2, Remark: "存储模式"},
+	}
+	for _, item := range items {
+		db.Where("dict_type = ? AND value = ?", item.DictType, item.Value).FirstOrCreate(&model.DictItem{}, item)
+	}
+}
+
+func seedSystemConfigs(db *gorm.DB) {
+	items := []model.SystemConfig{
+		{ConfigKey: "site.title", ConfigValue: "Admin Demo", Name: "站点标题", Group: "site", ValueType: "string", Remark: "后台系统标题"},
+		{ConfigKey: "site.logo", ConfigValue: "/logo.png", Name: "站点 Logo", Group: "site", ValueType: "string", Remark: "站点 logo 地址"},
+		{ConfigKey: "security.login_captcha", ConfigValue: "false", Name: "登录验证码", Group: "security", ValueType: "boolean", Remark: "是否启用登录验证码"},
+		{ConfigKey: "storage.default_mode", ConfigValue: "local", Name: "默认存储模式", Group: "storage", ValueType: "string", Remark: "默认文件存储模式"},
+	}
+	for _, item := range items {
+		db.Where("config_key = ?", item.ConfigKey).FirstOrCreate(&model.SystemConfig{}, item)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"admin-demo-go/internal/pkg/ecode"
+	"admin-demo-go/internal/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,7 +12,7 @@ import (
 func (m *Module) MenuGetTree(c *gin.Context) {
 	roles, err := m.rbacRepo.ListAllRoles()
 	if err != nil {
-		c.JSON(200, gin.H{"code": ecode.InternalError, "msg": "查询角色树失败", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InternalError, "查询角色树失败")
 		return
 	}
 	children := make([]gin.H, 0, len(roles))
@@ -22,19 +23,13 @@ func (m *Module) MenuGetTree(c *gin.Context) {
 			"label":      role.Code + "角色",
 		})
 	}
-	c.JSON(200, gin.H{
-		"code":       200,
-		"msg":        "success",
-		"totalCount": len(children),
-		"data": []gin.H{
-			{
-				"id":       "root",
-				"label":    "全部角色",
-				"children": children,
-			},
+	response.List(c, "success", []gin.H{
+		{
+			"id":       "root",
+			"label":    "全部角色",
+			"children": children,
 		},
-		"request_id": c.GetString("request_id"),
-	})
+	}, int64(len(children)))
 }
 
 func (m *Module) MenuDoEdit(c *gin.Context) {
@@ -56,13 +51,13 @@ func (m *Module) MenuDoEdit(c *gin.Context) {
 		} `json:"meta"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {
-		c.JSON(200, gin.H{"code": ecode.InvalidParams, "msg": "参数错误", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InvalidParams, "参数错误")
 		return
 	}
 	name := strings.TrimSpace(in.Name)
 	path := strings.TrimSpace(in.Path)
 	if name == "" || path == "" {
-		c.JSON(200, gin.H{"code": ecode.InvalidParams, "msg": "name与path不能为空", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InvalidParams, "name与path不能为空")
 		return
 	}
 	title := strings.TrimSpace(in.Meta.Title)
@@ -85,7 +80,7 @@ func (m *Module) MenuDoEdit(c *gin.Context) {
 	}
 	if in.ID > 0 {
 		if err := m.rbacRepo.UpdateMenuByID(in.ID, updates); err != nil {
-			c.JSON(200, gin.H{"code": ecode.InternalError, "msg": "更新菜单失败", "request_id": c.GetString("request_id")})
+			response.Fail(c, ecode.InternalError, "更新菜单失败")
 			return
 		}
 	} else {
@@ -105,7 +100,7 @@ func (m *Module) MenuDoEdit(c *gin.Context) {
 			"sort":          999,
 		}
 		if err := m.rbacRepo.CreateMenuMap(menu); err != nil {
-			c.JSON(200, gin.H{"code": ecode.InternalError, "msg": "新增菜单失败", "request_id": c.GetString("request_id")})
+			response.Fail(c, ecode.InternalError, "新增菜单失败")
 			return
 		}
 	}
@@ -115,7 +110,16 @@ func (m *Module) MenuDoEdit(c *gin.Context) {
 		"name":       name,
 		"path":       path,
 	})
-	c.JSON(200, gin.H{"code": 200, "msg": "保存成功", "request_id": c.GetString("request_id")})
+	m.recordOperation(operationContext{
+		Module:    "menu",
+		Action:    "save",
+		Operator:  c.GetString("username"),
+		Target:    name,
+		RequestID: c.GetString("request_id"),
+		IP:        c.ClientIP(),
+		Detail:    buildDetail("path="+path, "title="+title),
+	})
+	response.OK(c, "保存成功", nil)
 }
 
 func (m *Module) MenuDoDelete(c *gin.Context) {
@@ -123,12 +127,12 @@ func (m *Module) MenuDoDelete(c *gin.Context) {
 		IDs string `json:"ids"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {
-		c.JSON(200, gin.H{"code": ecode.InvalidParams, "msg": "参数错误", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InvalidParams, "参数错误")
 		return
 	}
 	ids := parseIDs(in.IDs)
 	if err := m.rbacRepo.DeleteMenusByIDs(ids); err != nil {
-		c.JSON(200, gin.H{"code": ecode.InternalError, "msg": "删除菜单失败", "request_id": c.GetString("request_id")})
+		response.Fail(c, ecode.InternalError, "删除菜单失败")
 		return
 	}
 	m.pub.Publish("menu_mgmt_delete", map[string]any{
@@ -136,5 +140,14 @@ func (m *Module) MenuDoDelete(c *gin.Context) {
 		"operator":   c.GetString("username"),
 		"ids":        in.IDs,
 	})
-	c.JSON(200, gin.H{"code": 200, "msg": "删除成功", "request_id": c.GetString("request_id")})
+	m.recordOperation(operationContext{
+		Module:    "menu",
+		Action:    "delete",
+		Operator:  c.GetString("username"),
+		Target:    joinIDs(in.IDs),
+		RequestID: c.GetString("request_id"),
+		IP:        c.ClientIP(),
+		Detail:    "删除菜单",
+	})
+	response.OK(c, "删除成功", nil)
 }
